@@ -23,7 +23,7 @@ pip install casbin_pymongo_adapter
 import casbin_pymongo_adapter
 import casbin
 
-adapter = casbin_pymongo_adapter.Adapter('mongodb://localhost:27017/', "dbname")
+adapter = casbin_pymongo_adapter.Adapter(host = 'mongodb://localhost:27017/', dbname = "dbname")
 
 e = casbin.Enforcer('path/to/model.conf', adapter, True)
 
