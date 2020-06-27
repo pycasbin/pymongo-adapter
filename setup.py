@@ -8,7 +8,7 @@ with open(desc_file, "r") as fh:
 setuptools.setup(
     name="casbin_pymongo_adapter",
     version="0.1.0",
-    author="TechLee",
+    author="TechLee,Xhy-5000",
     author_email="techlee@qq.com",
     description="PyMongo Adapter for PyCasbin",
     long_description=long_description,
