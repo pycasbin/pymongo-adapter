@@ -1,3 +1,4 @@
+import casbin
 from casbin import persist
 from pymongo import MongoClient
 
@@ -67,56 +68,7 @@ class Adapter(persist.Adapter):
             line.v4 = rule[4]
         if len(rule) > 5:
             line.v5 = rule[5]
-        document = {
-            'ptype': line.ptype,
-            'v0': line.v0,
-            'v1': line.v1,
-            'v2': line.v2,
-            'v3': line.v3,
-            'v4': line.v4,
-            'v5': line.v5,
-        }
-        # if len(rule) == 1:
-        #     document = {'ptype':ptype,
-        #                 'v0':rule[0]
-        #                 }
-        # elif len(rule) == 2:
-        #     document = {'ptype': ptype,
-        #                 'v0': rule[0],
-        #                 'v1': rule[1]
-        #                 }
-        # elif len(rule) == 3:
-        #     document = {'ptype': ptype,
-        #                 'v0': rule[0],
-        #                 'v1': rule[1],
-        #                 'v2': rule[2]
-        #                 }
-        # elif len(rule) == 4:
-        #     document = {'ptype': ptype,
-        #                 'v0': rule[0],
-        #                 'v1': rule[1],
-        #                 'v2': rule[2],
-        #                 'v3': rule[3]
-        #                 }
-        # elif len(rule) == 5:
-        #     document = {'ptype': ptype,
-        #                 'v0': rule[0],
-        #                 'v1': rule[1],
-        #                 'v2': rule[2],
-        #                 'v3': rule[3],
-        #                 'v4': rule[4]
-        #                 }
-        # else:
-        #     document = {'ptype': ptype,
-        #                 'v0': rule[0],
-        #                 'v1': rule[1],
-        #                 'v2': rule[2],
-        #                 'v3': rule[3],
-        #                 'v4': rule[4],
-        #                 'v5': rule[5]
-        #                 }
-        # self._collection.insert_one(document)
-        self._collection.insert_one(line)
+        self._collection.insert_one(line.__str__())
 
     def save_policy(self, model):
         '''
