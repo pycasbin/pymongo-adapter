@@ -80,40 +80,24 @@ class Adapter(persist.Adapter):
             line.v4 = rule[4]
         if len(rule) > 5:
             line.v5 = rule[5]
-        self._collection.insert_one(line.dict)
+        self._collection.insert_one(line.dict())
 
     def save_policy(self, model):
         '''
         implementing add Interface for casbin \n
         save the policy in mongodb \n
         '''
-        # for sec in ["p", "g"]:
-        #     if sec not in model.model.keys():
-        #         continue
-        #     for ptype, ast in model.model[sec].items():
-        #         for rule in ast.policy:
-        #             self._save_policy_line(ptype, rule)
-        # return True
-        self._collection.insert_one(model.dict)
+        for sec in ["p", "g"]:
+            if sec not in model.model.keys():
+                continue
+            for ptype, ast in model.model[sec].items():
+                for rule in ast.policy:
+                    self._save_policy_line(ptype, rule)
+        return True
 
     def add_policy(self, sec, ptype, rule):
         """add policy rules to mongodb"""
-        # self._save_policy_line(ptype, rule)
-        line = CasbinRule(ptype = ptype)
-        if len(rule) > 0:
-            line.v0 = rule[0]
-        if len(rule) > 1:
-            line.v1 = rule[1]
-        if len(rule) > 2:
-            line.v2 = rule[2]
-        if len(rule) > 3:
-            line.v3 = rule[3]
-        if len(rule) > 4:
-            line.v4 = rule[4]
-        if len(rule) > 5:
-            line.v5 = rule[5]
-        self.save_policy(line)
-
+        self._save_policy_line(ptype, rule)
 
     def remove_policy(self, sec, ptype, rule):
         """delete policy rules from mongodb"""
