@@ -3,7 +3,7 @@ from casbin_pymongo_adapter.adapter import CasbinRule
 from unittest import TestCase
 import casbin
 import os
-import simpleeval
+
 
 def get_fixture(path):
     '''
@@ -15,16 +15,28 @@ def get_fixture(path):
 
 def get_enforcer():
     adapter = Adapter('mongodb://localhost:27017', 'casbin_test')
-    c1 = CasbinRule(ptype='p', v0='alice', v1='data1', v2='read')
-    adapter.save_policy(c1)
-    c2 = CasbinRule(ptype='p', v0='bob', v1='data2', v2='write')
-    adapter.save_policy(c2)
-    c3 = CasbinRule(ptype='p', v0='data2_admin', v1='data2', v2='read')
-    adapter.save_policy(c3)
-    c4 = CasbinRule(ptype='p', v0='data2_admin', v1='data2', v2='write')
-    adapter.save_policy(c4)
-    c5 = CasbinRule(ptype='g', v0='alice', v1='data2_admin')
-    adapter.save_policy(c5)
+
+    e = casbin.Enforcer(get_fixture('rbac_model.conf'), adapter, True)
+    model = e.get_model()
+    model.clear_policy()
+    model.add_policy('p', 'p', ['alice', 'data1', 'read'])
+    adapter.save_policy(model)
+
+    model.clear_policy()
+    model.add_policy('p', 'p', ['bob', 'data2', 'write'])
+    adapter.save_policy(model)
+
+    model.clear_policy()
+    model.add_policy('p', 'p', ['data2_admin', 'data2', 'read'])
+    adapter.save_policy(model)
+
+    model.clear_policy()
+    model.add_policy('p', 'p', ['data2_admin', 'data2', 'write'])
+    adapter.save_policy(model)
+
+    model.clear_policy()
+    model.add_policy('g', 'g', ['alice', 'data2_admin'])
+    adapter.save_policy(model)
 
     return casbin.Enforcer(get_fixture('rbac_model.conf'), adapter, True)
 
@@ -39,8 +51,8 @@ class TestConfig(TestCase):
         test policy
         '''
         e = get_enforcer()
-        self.assertFalse(e.enforce('alice', 'data1', 'write'))
-        self.assertFalse(e.enforce('bob', 'data1', 'read'))
+        self.assertTrue(e.enforce('alice', 'data1', 'read'))
+        self.assertTrue(e.enforce('bob', 'data2', 'write'))
         self.assertTrue(e.enforce('bob', 'data2', 'write'))
         self.assertTrue(e.enforce('alice', 'data2', 'read'))
         self.assertTrue(e.enforce('alice', 'data2', 'write'))
@@ -49,19 +61,8 @@ class TestConfig(TestCase):
         '''
         test add_policy
         '''
-        adapter = Adapter('mongodb://localhost:27017', 'casbin_test')
+        adapter = Adapter('mongodb://localhost:27017', 'casbin_rule')
         e = casbin.Enforcer(get_fixture('rbac_model.conf'), adapter, True)
-
-        try:
-            self.assertFalse(e.enforce('alice', 'data1', 'write'))
-            self.assertFalse(e.enforce('bob', 'data1', 'read'))
-            self.assertFalse(e.enforce('bob', 'data2', 'write'))
-            self.assertFalse(e.enforce('alice', 'data2', 'read'))
-            self.assertFalse(e.enforce('alice', 'data2', 'write'))
-        except simpleeval.NameNotDefined:
-            # This is caused by an upstream bug when there is no policy loaded
-            # Should be resolved in pycasbin >= 0.3
-            pass
 
         adapter.add_policy(sec=None, ptype='p', rule=['alice', 'data1', 'read'])
         adapter.add_policy(sec=None, ptype='p', rule=['bob', 'data2', 'write'])
@@ -82,23 +83,33 @@ class TestConfig(TestCase):
         '''
         test save_policy
         '''
-        model = casbin.Enforcer(get_fixture('rbac_model.conf'), get_fixture('rbac_policy.csv')).model
-        adapter = Adapter('mongodb://localhost:27017', 'casbin_test')
-        adapter.save_policy(model)
-        e = casbin.Enforcer(get_fixture('rbac_model.conf'), adapter)
 
-        self.assertFalse(e.enforce('alice', 'data1', 'read'))
-        self.assertFalse(e.enforce('bob', 'data1', 'read'))
-        self.assertTrue(e.enforce('bob', 'data2', 'write'))
-        self.assertTrue(e.enforce('alice', 'data2', 'read'))
-        self.assertTrue(e.enforce('alice', 'data2', 'write'))
+        e = get_enforcer()
+        self.assertFalse(e.enforce('alice', 'data4', 'read'))
+
+        model = e.get_model()
+        model.clear_policy()
+
+        model.add_policy('p', 'p', ['alice', 'data4', 'read'])
+
+        adapter = e.get_adapter()
+        adapter.save_policy(model)
+
+        self.assertTrue(e.enforce('alice', 'data4', 'read'))
 
     def test_str(self):
         '''
         test __str__ function
         '''
         rule = CasbinRule(ptype='p', v0='alice', v1='data1', v2='read')
-        self.assertEqual(str(rule), 'p, alice, data1, read')
+        self.assertEqual(rule.__str__(), 'p, alice, data1, read')
+
+    def test_dict(self):
+        '''
+        test __str__ function
+        '''
+        rule = CasbinRule(ptype='p', v0='alice', v1='data1', v2='read')
+        self.assertEqual(rule.dict(), {"ptype": 'p', "v0": 'alice', "v1": 'data1', "v2": 'read'})
 
     def test_repr(self):
         '''
@@ -107,5 +118,5 @@ class TestConfig(TestCase):
         adapter = Adapter('mongodb://localhost:27017', 'casbin_test')
         rule = CasbinRule(ptype='p', v0='alice', v1='data1', v2='read')
         self.assertEqual(repr(rule), '<CasbinRule :"p, alice, data1, read">')
-        adapter.save_policy(rule)
-        self.assertRegex(repr(rule), r'<CasbinRule :"p, alice, data1, read">')
+        # adapter.save_policy(rule)
+        # self.assertRegex(repr(rule), r'<CasbinRule :"p, alice, data1, read">')
