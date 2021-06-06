@@ -1,0 +1,36 @@
+E.E.E.
+======================================================================
+ERROR: test_add_policy (test_adapter.TestConfig)
+test add_policy
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/ubuntu/pymongo-adapter/tests/test_adapter.py", line 65, in test_add_policy
+    e = casbin.Enforcer(get_fixture('rbac_model.conf'), adapter, True)
+TypeError: __init__() takes from 1 to 3 positional arguments but 4 were given
+
+======================================================================
+ERROR: test_enforcer_basic (test_adapter.TestConfig)
+test policy
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/ubuntu/pymongo-adapter/tests/test_adapter.py", line 53, in test_enforcer_basic
+    e = get_enforcer()
+  File "/home/ubuntu/pymongo-adapter/tests/test_adapter.py", line 19, in get_enforcer
+    e = casbin.Enforcer(get_fixture('rbac_model.conf'), adapter, True)
+TypeError: __init__() takes from 1 to 3 positional arguments but 4 were given
+
+======================================================================
+ERROR: test_save_policy (test_adapter.TestConfig)
+test save_policy
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/ubuntu/pymongo-adapter/tests/test_adapter.py", line 87, in test_save_policy
+    e = get_enforcer()
+  File "/home/ubuntu/pymongo-adapter/tests/test_adapter.py", line 19, in get_enforcer
+    e = casbin.Enforcer(get_fixture('rbac_model.conf'), adapter, True)
+TypeError: __init__() takes from 1 to 3 positional arguments but 4 were given
+
+----------------------------------------------------------------------
+Ran 6 tests in 0.023s
+
+FAILED (errors=3)
