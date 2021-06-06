@@ -16,7 +16,7 @@ def get_fixture(path):
 def get_enforcer():
     adapter = Adapter('mongodb://localhost:27017', 'casbin_test')
 
-    e = casbin.Enforcer(get_fixture('rbac_model.conf'), adapter, True)
+    e = casbin.Enforcer(get_fixture('rbac_model.conf'), adapter)
     model = e.get_model()
     model.clear_policy()
     model.add_policy('p', 'p', ['alice', 'data1', 'read'])
@@ -38,7 +38,7 @@ def get_enforcer():
     model.add_policy('g', 'g', ['alice', 'data2_admin'])
     adapter.save_policy(model)
 
-    return casbin.Enforcer(get_fixture('rbac_model.conf'), adapter, True)
+    return casbin.Enforcer(get_fixture('rbac_model.conf'), adapter)
 
 
 class TestConfig(TestCase):
@@ -62,7 +62,7 @@ class TestConfig(TestCase):
         test add_policy
         '''
         adapter = Adapter('mongodb://localhost:27017', 'casbin_rule')
-        e = casbin.Enforcer(get_fixture('rbac_model.conf'), adapter, True)
+        e = casbin.Enforcer(get_fixture('rbac_model.conf'), adapter)
 
         adapter.add_policy(sec=None, ptype='p', rule=['alice', 'data1', 'read'])
         adapter.add_policy(sec=None, ptype='p', rule=['bob', 'data2', 'write'])
