@@ -1,5 +1,6 @@
 from casbin_pymongo_adapter.adapter import Adapter
 from casbin_pymongo_adapter.adapter import CasbinRule
+from pymongo import MongoClient
 from unittest import TestCase
 import casbin
 import os
@@ -15,9 +16,9 @@ def get_fixture(path):
 
 def get_enforcer():
     adapter = Adapter('mongodb://localhost:27017', 'casbin_test')
-
     e = casbin.Enforcer(get_fixture('rbac_model.conf'), adapter)
     model = e.get_model()
+
     model.clear_policy()
     model.add_policy('p', 'p', ['alice', 'data1', 'read'])
     adapter.save_policy(model)
@@ -40,11 +41,20 @@ def get_enforcer():
 
     return casbin.Enforcer(get_fixture('rbac_model.conf'), adapter)
 
+def clear_db(dbname):
+    client = MongoClient('mongodb://localhost:27017')
+    client.drop_database(dbname)
+
 
 class TestConfig(TestCase):
     '''
     unittest
     '''
+    def setUp(self):
+        clear_db('casbin_test')
+
+    def tearDown(self):
+        clear_db('casbin_test')
 
     def test_enforcer_basic(self):
         '''
@@ -52,7 +62,8 @@ class TestConfig(TestCase):
         '''
         e = get_enforcer()
         self.assertTrue(e.enforce('alice', 'data1', 'read'))
-        self.assertTrue(e.enforce('bob', 'data2', 'write'))
+        self.assertFalse(e.enforce('alice', 'data1', 'write'))
+        self.assertFalse(e.enforce('bob', 'data2', 'read'))
         self.assertTrue(e.enforce('bob', 'data2', 'write'))
         self.assertTrue(e.enforce('alice', 'data2', 'read'))
         self.assertTrue(e.enforce('alice', 'data2', 'write'))
@@ -61,23 +72,83 @@ class TestConfig(TestCase):
         '''
         test add_policy
         '''
-        adapter = Adapter('mongodb://localhost:27017', 'casbin_rule')
-        e = casbin.Enforcer(get_fixture('rbac_model.conf'), adapter)
-
-        adapter.add_policy(sec=None, ptype='p', rule=['alice', 'data1', 'read'])
-        adapter.add_policy(sec=None, ptype='p', rule=['bob', 'data2', 'write'])
-        adapter.add_policy(sec=None, ptype='p', rule=['data2_admin', 'data2', 'read'])
-        adapter.add_policy(sec=None, ptype='p', rule=['data2_admin', 'data2', 'write'])
-        adapter.add_policy(sec=None, ptype='g', rule=['alice', 'data2_admin'])
-
-        e.load_policy()
-
+        e = get_enforcer()
+        adapter = e.get_adapter()
+        self.assertTrue(e.enforce('alice', 'data1', 'read'))
         self.assertFalse(e.enforce('alice', 'data1', 'write'))
-        self.assertFalse(e.enforce('bob', 'data1', 'read'))
+        self.assertFalse(e.enforce('bob', 'data2', 'read'))
         self.assertTrue(e.enforce('bob', 'data2', 'write'))
         self.assertTrue(e.enforce('alice', 'data2', 'read'))
         self.assertTrue(e.enforce('alice', 'data2', 'write'))
-        self.assertFalse(e.enforce('bogus', 'data2', 'write'))
+        
+        # test add_policy after insert 2 rules
+        adapter.add_policy(sec='p', ptype='p', rule=('alice', 'data1', 'write'))
+        adapter.add_policy(sec='p', ptype='p', rule=('bob', 'data2', 'read'))
+
+        # reload policies from database
+        e.load_policy()
+
+        self.assertTrue(e.enforce('alice', 'data1', 'read'))
+        self.assertTrue(e.enforce('alice', 'data1', 'write'))
+        self.assertTrue(e.enforce('bob', 'data2', 'read'))
+        self.assertTrue(e.enforce('bob', 'data2', 'write'))
+        self.assertTrue(e.enforce('alice', 'data2', 'read'))
+        self.assertTrue(e.enforce('alice', 'data2', 'write'))
+        
+    def test_remove_policy(self):
+        '''
+        test remove_policy
+        '''
+        e = get_enforcer()
+        adapter = e.get_adapter()
+        self.assertTrue(e.enforce('alice', 'data1', 'read'))
+        self.assertFalse(e.enforce('alice', 'data1', 'write'))
+        self.assertFalse(e.enforce('bob', 'data2', 'read'))
+        self.assertTrue(e.enforce('bob', 'data2', 'write'))
+        self.assertTrue(e.enforce('alice', 'data2', 'read'))
+        self.assertTrue(e.enforce('alice', 'data2', 'write'))
+        
+        # test remove_policy after delete a role definition
+        deleted_count = adapter.remove_policy(sec='g', ptype='g', rule=('alice', 'data2_admin'))
+
+        # reload policies from database
+        e.load_policy()
+
+        self.assertTrue(e.enforce('alice', 'data1', 'read'))
+        self.assertFalse(e.enforce('alice', 'data1', 'write'))
+        self.assertFalse(e.enforce('bob', 'data2', 'read'))
+        self.assertTrue(e.enforce('bob', 'data2', 'write'))
+        self.assertFalse(e.enforce('alice', 'data2', 'read'))
+        self.assertFalse(e.enforce('alice', 'data2', 'write'))
+        self.assertEqual(deleted_count, 1)
+
+    def test_remove_policy_no_remove_when_rule_is_incomplete(self):
+        adapter = Adapter('mongodb://localhost:27017', 'casbin_test')
+        e = casbin.Enforcer(get_fixture('rbac_with_resources_roles.conf'), adapter)
+        
+        adapter.add_policy(sec='p', ptype='p', rule=('alice', 'data1', 'write'))
+        adapter.add_policy(sec='p', ptype='p', rule=('alice', 'data1', 'read'))
+        adapter.add_policy(sec='p', ptype='p', rule=('bob', 'data2', 'read'))
+        adapter.add_policy(sec='p', ptype='p', rule=('data_group_admin', 'data_group', 'write'))
+        adapter.add_policy(sec='g', ptype='g', rule=('alice', 'data_group_admin'))
+        adapter.add_policy(sec='g', ptype='g2', rule=('data2', 'data_group'))
+        
+        e.load_policy()
+        
+        self.assertTrue(e.enforce('alice', 'data1', 'write'))
+        self.assertTrue(e.enforce('alice', 'data1', 'read'))
+        self.assertTrue(e.enforce('bob', 'data2', 'read'))
+        self.assertTrue(e.enforce('alice', 'data2', 'write'))
+
+        # test remove_policy doesn't remove when given an incomplete policy
+        deleted_count = adapter.remove_policy(sec='p', ptype='p', rule=('alice', 'data1'))
+        e.load_policy()
+
+        self.assertTrue(e.enforce('alice', 'data1', 'write'))
+        self.assertTrue(e.enforce('alice', 'data1', 'read'))
+        self.assertTrue(e.enforce('bob', 'data2', 'read'))
+        self.assertTrue(e.enforce('alice', 'data2', 'write'))
+        self.assertEqual(deleted_count, 0)
 
     def test_save_policy(self):
         '''
@@ -90,7 +161,7 @@ class TestConfig(TestCase):
         model = e.get_model()
         model.clear_policy()
 
-        model.add_policy('p', 'p', ['alice', 'data4', 'read'])
+        model.add_policy('p', 'p', ('alice', 'data4', 'read'))
 
         adapter = e.get_adapter()
         adapter.save_policy(model)
