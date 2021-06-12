@@ -114,7 +114,7 @@ class Adapter(persist.Adapter):
 
         Args:
             sec (str): Section name, 'g' or 'p'
-            ptype (str): Policy type, 'g' or 'p'
+            ptype (str): Policy type, 'g', 'g2', 'p', etc.
             rule (CasbinRule): Casbin rule will be added
 
         Returns:
@@ -124,29 +124,37 @@ class Adapter(persist.Adapter):
         return True
 
     def remove_policy(self, sec, ptype, rule):
-        """Remove policy rules in mongodb
+        """Remove policy rules in mongodb(rules duplicate are also removed)
 
         Args:
-            ptype (str): Policy type, 'g' or 'p'
-            rule (CasbinRule): Casbin rule will be removed
+            ptype (str): Policy type, 'g', 'g2', 'p', etc.
+            rule (CasbinRule): Casbin rule if it is exactly same as will be removed.
         
         Returns:
             Number: Number of policies be removed
         """
         deleted_count = self._delete_policy_lines(ptype, rule)
-        return deleted_count
+        return deleted_count > 0
 
     def remove_filtered_policy(self, sec, ptype, field_index, *field_values):
         """Remove policy rules taht match the filter from the storage.
            This is part of the Auto-Save feature.
 
         Args:
-            ptype (str): Policy type, 'g' or 'p'
+            ptype (str): Policy type, 'g', 'g2', 'p', etc.
             rule (CasbinRule): Casbin rule will be removed
-            field_index (int): 
-            field_values(List[str])
+            field_index (int): The policy index at which the filed_values begins filtering. Its range is [0, 5]
+            field_values(List[str]): A list of rules to filter policy which starts from 
 
         Returns:
             bool: True if succeed else False
         """
-        return True
+        if not (0 <= field_index <=5):
+            return False
+        if not (1 <= field_index + len(field_values) <= 6):
+            return False
+        query = {f'v{index + field_index}' : value 
+                        for index, value in enumerate(field_values)}
+        query['ptype'] = ptype
+        results = self._collection.delete_many(query)
+        return results.deleted_count > 0

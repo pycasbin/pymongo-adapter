@@ -109,7 +109,7 @@ class TestConfig(TestCase):
         self.assertTrue(e.enforce('alice', 'data2', 'write'))
         
         # test remove_policy after delete a role definition
-        deleted_count = adapter.remove_policy(sec='g', ptype='g', rule=('alice', 'data2_admin'))
+        result = adapter.remove_policy(sec='g', ptype='g', rule=('alice', 'data2_admin'))
 
         # reload policies from database
         e.load_policy()
@@ -120,7 +120,7 @@ class TestConfig(TestCase):
         self.assertTrue(e.enforce('bob', 'data2', 'write'))
         self.assertFalse(e.enforce('alice', 'data2', 'read'))
         self.assertFalse(e.enforce('alice', 'data2', 'write'))
-        self.assertEqual(deleted_count, 1)
+        self.assertTrue(result)
 
     def test_remove_policy_no_remove_when_rule_is_incomplete(self):
         adapter = Adapter('mongodb://localhost:27017', 'casbin_test')
@@ -141,14 +141,14 @@ class TestConfig(TestCase):
         self.assertTrue(e.enforce('alice', 'data2', 'write'))
 
         # test remove_policy doesn't remove when given an incomplete policy
-        deleted_count = adapter.remove_policy(sec='p', ptype='p', rule=('alice', 'data1'))
+        result = adapter.remove_policy(sec='p', ptype='p', rule=('alice', 'data1'))
         e.load_policy()
 
         self.assertTrue(e.enforce('alice', 'data1', 'write'))
         self.assertTrue(e.enforce('alice', 'data1', 'read'))
         self.assertTrue(e.enforce('bob', 'data2', 'read'))
         self.assertTrue(e.enforce('alice', 'data2', 'write'))
-        self.assertEqual(deleted_count, 0)
+        self.assertFalse(result)
 
     def test_save_policy(self):
         '''
@@ -167,6 +167,39 @@ class TestConfig(TestCase):
         adapter.save_policy(model)
 
         self.assertTrue(e.enforce('alice', 'data4', 'read'))
+
+    def test_remove_filtered_policy(self):
+        '''
+        test remove_filtered_policy
+        '''
+        e = get_enforcer()
+        adapter = e.get_adapter()
+        self.assertTrue(e.enforce('alice', 'data1', 'read'))
+        self.assertFalse(e.enforce('alice', 'data1', 'write'))
+        self.assertFalse(e.enforce('bob', 'data2', 'read'))
+        self.assertTrue(e.enforce('bob', 'data2', 'write'))
+        self.assertTrue(e.enforce('alice', 'data2', 'read'))
+        self.assertTrue(e.enforce('alice', 'data2', 'write'))
+
+        result = adapter.remove_filtered_policy('g', 'g', 6, 'alice', 'data2_admin')
+        e.load_policy()
+        self.assertFalse(result)
+
+        result = adapter.remove_filtered_policy('g', 'g', 0, *[f'v{i}' for i in range(7)])
+        e.load_policy()
+        self.assertFalse(result)
+
+
+        result = adapter.remove_filtered_policy('g', 'g', 0, 'alice', 'data2_admin')
+        e.load_policy()
+        self.assertTrue(result)
+        self.assertTrue(e.enforce('alice', 'data1', 'read'))
+        self.assertFalse(e.enforce('alice', 'data1', 'write'))
+        self.assertFalse(e.enforce('bob', 'data2', 'read'))
+        self.assertTrue(e.enforce('bob', 'data2', 'write'))
+        self.assertFalse(e.enforce('alice', 'data2', 'read'))
+        self.assertFalse(e.enforce('alice', 'data2', 'write'))
+
 
     def test_str(self):
         '''
