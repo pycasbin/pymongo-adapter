@@ -165,7 +165,9 @@ class Adapter(persist.Adapter):
         if not (1 <= field_index + len(field_values) <= 6):
             return False
         query = {
-            f"v{index + field_index}": value for index, value in enumerate(field_values) if value != ""
+            f"v{index + field_index}": value 
+            for index, value in enumerate(field_values) 
+            if value != ""
         }
         query["ptype"] = ptype
         results = self._collection.delete_many(query)
